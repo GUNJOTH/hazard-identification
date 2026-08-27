@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>隐患单分析详情</title>
+    <link rel="stylesheet" href="./style.css?v=detail-design-3" />
+  </head>
+  <body class="analysis-page-body detail-design-body">
+    <div class="detail-app-shell">
+      <header class="detail-topbar">
+        <div class="detail-breadcrumb">
+          <a id="backToList" class="detail-back-link" href="./index.html" aria-label="返回隐患列表">←</a>
+          <strong>隐患识别分析系统</strong>
+          <span>›</span>
+          <b>分析详情</b>
+        </div>
+        <div class="detail-top-actions">
+          <button id="downloadReport" class="download-button" type="button">⇩&nbsp; 下载分析报告</button>
+          <button class="more-button" type="button" aria-label="更多操作">⋮</button>
+        </div>
+      </header>
+
+      <main class="detail-page-main">
+        <section class="detail-hero">
+          <div class="detail-hero-icon">▧</div>
+          <div>
+            <h1>隐患单分析详情</h1>
+            <p>基于多模态识别结果、规则与法规知识的隐患综合分析</p>
+          </div>
+          <div id="serviceStatus" class="service-status is-loading">加载分析中</div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-title"><span>1.</span> 隐患单基础信息</div>
+          <div class="basic-info-grid">
+            <div><span>隐患单编号</span><strong id="detailRecordId">-</strong></div>
+            <div><span>隐患发现来源</span><strong id="detailSource">-</strong></div>
+            <div><span>发现时间</span><strong id="detailTime">-</strong></div>
+            <div class="basic-info-description"><span>隐患描述</span><strong id="detailDescription">-</strong></div>
+            <div><span>隐患类别</span><strong id="detailCategory">-</strong></div>
+            <div><span>隐患类型</span><strong id="detailType">-</strong></div>
+            <div><span>隐患等级</span><strong id="detailLevel">-</strong></div>
+            <div><span>设备名称</span><strong id="detailEquipment">-</strong></div>
+            <div><span>位置</span><strong id="detailLocation">-</strong></div>
+            <div><span>整改时限</span><strong id="detailDeadline">-</strong></div>
+            <div><span>是否涉及特种设备</span><strong id="detailSpecial">-</strong></div>
+            <div><span>整改状态</span><strong id="detailStatus">-</strong></div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-title"><span>2.</span> 识别图像与隐患部位</div>
+          <div class="visual-evidence-layout">
+            <div class="image-gallery-card">
+              <div class="sub-card-title">识别图像</div>
+              <div class="main-image-frame">
+                <canvas id="detailMainCanvas" aria-label="隐患识别图像"></canvas>
+                <div id="mainImageEmpty" class="image-empty">暂无识别图像</div>
+              </div>
+              <div id="detailThumbnails" class="detail-thumbnails"></div>
+            </div>
+            <div class="region-focus-card">
+              <div class="sub-card-title">隐患部位放大图与标注</div>
+              <div class="region-focus-frame">
+                <canvas id="regionFocusCanvas" aria-label="隐患部位放大图"></canvas>
+                <div id="regionFocusEmpty" class="image-empty">暂无可绘制的区域坐标</div>
+              </div>
+              <div class="evidence-caption"><b>识别依据：</b><span id="regionFocusDescription">待 AI 分析</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-title"><span>3.</span> 分析依据</div>
+          <div class="basis-grid">
+            <div class="basis-card image-basis-card">
+              <div class="sub-card-title">3.1 图像识别依据（隐患部位截图）</div>
+              <div class="basis-image-frame"><canvas id="basisCanvas" aria-label="图像识别依据"></canvas></div>
+              <p id="basisDescription">根据识别结果，定位并核验隐患部位。</p>
+            </div>
+            <div class="basis-card">
+              <div class="sub-card-title">3.2 相关法律法规依据</div>
+              <div id="legalBasis" class="basis-list"></div>
+              <button class="basis-more-button" type="button">查看更多法规&nbsp;›</button>
+            </div>
+            <div class="basis-card">
+              <div class="sub-card-title">3.3 企业规则依据</div>
+              <div id="ruleBasis" class="basis-list"></div>
+              <button class="basis-more-button" type="button">查看全部规则&nbsp;›</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-title"><span>4.</span> 隐患识别结果（多模态分析）</div>
+          <div class="result-table-wrap">
+            <table class="result-table">
+              <thead>
+                <tr><th>序号</th><th>隐患描述（识别结果）</th><th>隐患部位</th><th>风险等级</th><th>置信度</th><th>依据</th></tr>
+              </thead>
+              <tbody id="findingRows"><tr><td colspan="6" class="table-empty">正在生成识别结果…</td></tr></tbody>
+            </table>
+            <button id="expandFindings" class="table-more-button hidden" type="button">展开全部&nbsp;（共 0 项）⌄</button>
+          </div>
+        </section>
+
+        <section class="detail-section">
+          <div class="detail-section-title"><span>5.</span> 风险分析与建议</div>
+          <div class="risk-suggestion-grid">
+            <div class="risk-card">
+              <div class="sub-card-title">风险影响分析</div>
+              <div id="riskAnalysisList" class="blue-bullet-list"><div class="table-empty">正在分析…</div></div>
+            </div>
+            <div class="risk-card">
+              <div class="sub-card-title">整改建议</div>
+              <div id="actionList" class="numbered-list"><div class="table-empty">正在生成…</div></div>
+            </div>
+            <div class="risk-card deadline-card">
+              <div class="sub-card-title">建议整改时限</div>
+              <div id="deadlineBadge" class="deadline-badge"><span>◷</span><b>待确认</b></div>
+              <strong id="deadlineText" class="deadline-text">请结合现场情况确认整改时限</strong>
+              <p id="deadlineHint">完成风险评估并制定整改方案</p>
+            </div>
+          </div>
+        </section>
+
+        <footer class="detail-footer">注：本分析结果由多模态识别、法规知识库与企业规则综合评估生成，仅供参考，最终以人工审核为准。</footer>
+      </main>
+    </div>
+    <script src="./analysis.js?v=detail-design-3"></script>
+  </body>
+</html>

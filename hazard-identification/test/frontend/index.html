@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>隐患识别记录列表</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body class="list-page-body">
+    <div class="app-shell">
+      <header class="topbar">
+        <div>
+          <div class="brand">隐患识别智能体</div>
+          <div class="brand-subtitle">AI 识别记录列表 · 点击记录查看分析详情</div>
+        </div>
+        <div id="serviceStatus" class="service-status is-loading">连接服务中</div>
+      </header>
+
+      <main class="list-page">
+        <section class="list-hero panel">
+          <div>
+            <div class="eyebrow">HAZARD IDENTIFICATION</div>
+            <h1>隐患识别记录</h1>
+            <p>从已生成的隐患记录进入分析页面，查看 AI 识别结果、图片证据和知识库判定依据。</p>
+          </div>
+          <div class="hero-stats">
+            <div><strong id="recordTotal">0</strong><span>全部记录</span></div>
+            <div><strong id="majorTotal">0</strong><span>重大隐患</span></div>
+            <div><strong id="reviewTotal">0</strong><span>待人工复核</span></div>
+          </div>
+        </section>
+
+        <section class="panel records-panel records-panel--wide">
+          <div class="panel-heading">
+            <div>
+              <h2>识别结果列表</h2>
+              <p>点击任意记录进入分析页</p>
+            </div>
+            <button id="refreshButton" class="ghost-button" type="button">刷新列表</button>
+          </div>
+          <div class="record-toolbar">
+            <input id="keywordInput" type="search" placeholder="搜索隐患描述、设备名称、位置或类别" />
+            <span id="filterTotal" class="record-total">共 0 条</span>
+          </div>
+          <div id="recordList" class="record-grid">
+            <div class="list-empty">正在加载隐患记录…</div>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script src="./app.js"></script>
+  </body>
+</html>

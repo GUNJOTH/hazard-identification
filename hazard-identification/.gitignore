@@ -1,0 +1,11 @@
+.env
+test/results/
+test/api-runtime/
+*.log
+runtime/
+python_app/.venv/
+python_app/.packages/
+.venv/
+__pycache__/
+*.pyc
+.uv-cache/
