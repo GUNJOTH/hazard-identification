@@ -42,7 +42,7 @@ HAZARD_TYPES = (
     "其他事故隐患",
 )
 HAZARD_LEVELS = ("一般隐患", "重大隐患")
-DISCOVERY_SOURCES = ("安全检查", "巡检", "缺陷", "隐患排查")
+DISCOVERY_SOURCES = ("安全检查", "巡检", "缺陷", "隐患排查", "图片上传识别")
 YES_NO = ("是", "否")
 
 
@@ -137,11 +137,6 @@ class HazardIdentificationResponse(BaseModel):
     hazard_info: HazardDraftResponse
 
 
-class DetailAnalyzer(BaseModel):
-    type: str
-    name: str
-
-
 class DetailBbox(BaseModel):
     x: float
     y: float
@@ -160,37 +155,19 @@ class DetailRegionResponse(BaseModel):
 class DetailImageResponse(BaseModel):
     index: int
     url: str
-    thumbnail_url: str | None
     regions: list[DetailRegionResponse]
-
-
-class DetailFindingResponse(BaseModel):
-    description: str
-    reason: str | None
-    location: str | None
-    risk_level: str | None
-    confidence: float | None
-    basis: list[str]
-
-
-class DetailResponseDeadline(BaseModel):
-    urgency: str | None
-    text: str
 
 
 class DetailLawEvidence(BaseModel):
     title: str
     article: str | None
     excerpt: str
-    source_url: str | None
 
 
 class DetailRuleEvidence(BaseModel):
-    code: str | None
-    name: str | None
+    title: str
+    riskLevelText: str | None
     excerpt: str
-    risk_level: str | None
-    source_url: str | None
 
 
 class DetailEvidenceResponse(BaseModel):
@@ -198,40 +175,50 @@ class DetailEvidenceResponse(BaseModel):
     rules: list[DetailRuleEvidence]
 
 
-class DetailAnalysisResponse(BaseModel):
-    summary: str | None
-    confidence: float | None
-    findings: list[DetailFindingResponse]
-    risk_impacts: list[str]
-    recommended_actions: list[str]
-    response_deadline: DetailResponseDeadline | None
-    evidence: DetailEvidenceResponse
+class DetailBasicResponse(BaseModel):
+    reportNo: str | None
+    createdAt: str
+    source: str | None
+    model: str | None
+    analyst: str | None
+    analyzedAt: str | None
+
+
+class DetailMediaResponse(BaseModel):
+    imageBasis: str | None
+    images: list[DetailImageResponse]
+
+
+class DetailFindingRiskBadge(BaseModel):
+    text: str | None
+
+
+class DetailFindingResponse(BaseModel):
+    description: str
+    reason: str | None
+    location: str | None
+    riskBadge: DetailFindingRiskBadge
+    confidenceText: str | None
+    basisText: str | None
+
+
+class DetailSuggestionDeadline(BaseModel):
+    isUrgent: bool
+    text: str
+
+
+class DetailSuggestionResponse(BaseModel):
+    impacts: list[str]
+    actions: list[str]
+    deadline: DetailSuggestionDeadline
 
 
 class HazardDetailResponse(BaseModel):
-    id: str
-    report_no: str | None
-    status: str
-    created_at: str
-    discovery_time: str
-    model: str | None
-    analyzed_at: str | None
-    analyzer: DetailAnalyzer
-    description: str | None
-    category: str | None
-    type: str | None
-    level: str | None
-    level_source: str | None
-    discovery_source: str | None
-    location: str | None
-    equipment_name: str | None
-    image_count: int
-    thumbnail_url: str | None
-    manual_review_required: bool
-    rectification_deadline: str | None
-    identification_basis: str | None
-    images: list[DetailImageResponse]
-    analysis: DetailAnalysisResponse
+    basic: DetailBasicResponse
+    media: DetailMediaResponse
+    evidence: DetailEvidenceResponse
+    findings: list[DetailFindingResponse]
+    suggestion: DetailSuggestionResponse
 
 
 class HazardListItem(BaseModel):
@@ -1354,7 +1341,6 @@ def detail_images(record_id: str, image_count: int, regions: list[dict[str, Any]
         {
             "index": index,
             "url": f"/api/v1/hazard-identifications/{record_id}/images/{index}",
-            "thumbnail_url": f"/api/v1/hazard-identifications/{record_id}/images/{index}?w=128",
             "regions": grouped[index],
         }
         for index in range(image_count)
@@ -1478,6 +1464,103 @@ def detail_findings(
     return result
 
 
+def detail_public_risk_text(value: Any) -> str | None:
+    return {
+        "high": "高",
+        "medium": "中",
+        "low": "低",
+    }.get(str(value or "").strip().lower())
+
+
+def detail_public_confidence(value: Any) -> str | None:
+    confidence = unit_coordinate(value)
+    return f"{confidence:.2f}" if confidence is not None else None
+
+
+def detail_public_basis_text(value: Any) -> str | None:
+    labels = {
+        "image_feature": "图像特征",
+        "image_features": "图像特征",
+        "图像特征": "图像特征",
+        "law": "法规",
+        "laws": "法规",
+        "法规": "法规",
+        "rule": "规则",
+        "rules": "规则",
+        "规则": "规则",
+        "knowledge": "知识库",
+        "知识库": "知识库",
+    }
+    values = value if isinstance(value, list) else []
+    result: list[str] = []
+    for item in values:
+        text = labels.get(str(item).strip(), str(item).strip())
+        if text and text not in result:
+            result.append(text)
+    return "、".join(result) or None
+
+
+def detail_public_evidence(evidence: dict[str, list[dict[str, Any]]]) -> dict[str, list[dict[str, Any]]]:
+    return {
+        "laws": [
+            {
+                "title": item["title"],
+                "article": item.get("article"),
+                "excerpt": item["excerpt"],
+            }
+            for item in evidence.get("laws", [])
+        ],
+        "rules": [
+            {
+                "title": item.get("name") or item.get("code") or "企业隐患规则",
+                "riskLevelText": item.get("risk_level"),
+                "excerpt": item["excerpt"],
+            }
+            for item in evidence.get("rules", [])
+        ],
+    }
+
+
+def detail_public_findings(
+    findings: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    return [
+        {
+            "description": item["description"],
+            "reason": item.get("reason"),
+            "location": item.get("location"),
+            "riskBadge": {"text": detail_public_risk_text(item.get("risk_level"))},
+            "confidenceText": detail_public_confidence(item.get("confidence")),
+            "basisText": detail_public_basis_text(item.get("basis")),
+        }
+        for item in findings
+    ]
+
+
+def detail_public_deadline(
+    value: Any,
+    draft: dict[str, Any],
+) -> dict[str, Any]:
+    if isinstance(value, dict):
+        text = limit_text(value.get("text"), 500)
+        urgency = str(value.get("urgency") or "").strip().lower()
+        if text:
+            return {
+                "isUrgent": bool(value.get("isUrgent") is True or urgency == "urgent"),
+                "text": text,
+            }
+    deadline = valid_date(draft.get("rectification_deadline"))
+    if deadline:
+        return {
+            "isUrgent": draft.get("level") == "重大隐患",
+            "text": f"建议在 {deadline} 前完成整改并复核",
+        }
+    return {
+        "isUrgent": False,
+        "text": "建议结合现场风险评估确定整改时限",
+    }
+
+
 def public_detail_result(result: dict[str, Any]) -> dict[str, Any]:
     draft = dict(result.get("hazard_draft") or {})
     content_analysis = dict(result.get("content_analysis") or {})
@@ -1487,53 +1570,37 @@ def public_detail_result(result: dict[str, Any]) -> dict[str, Any]:
         image_count,
     )
     evidence = detail_evidence(draft.get("evidence") or content_analysis.get("evidence"))
-    analysis = {
-        "summary": limit_text(content_analysis.get("summary"), 1000) or draft.get("description"),
-        "confidence": unit_coordinate(content_analysis.get("confidence")) or unit_coordinate(
-            (result.get("vision") or {}).get("analysis", {}).get("confidence")
-        ),
-        "findings": detail_findings(content_analysis, draft, evidence),
-        "risk_impacts": unique_texts(content_analysis.get("risk_impacts")),
-        "recommended_actions": unique_texts(content_analysis.get("recommended_actions"))
-        or unique_texts(draft.get("suggested_actions")),
-        "response_deadline": content_analysis.get("response_deadline")
-        if isinstance(content_analysis.get("response_deadline"), dict) else None,
-        "evidence": evidence,
-    }
-    if not analysis["risk_impacts"]:
+    findings = detail_findings(content_analysis, draft, evidence)
+    impacts = unique_texts(content_analysis.get("risk_impacts"))
+    if not impacts:
         impact = nullable_text(content_analysis.get("impact"))
         if impact and impact != "待现场核实":
-            analysis["risk_impacts"] = [impact]
-    if analysis["response_deadline"] is None and draft.get("rectification_deadline"):
-        urgency = "urgent" if draft.get("level") == "重大隐患" else "normal"
-        analysis["response_deadline"] = {
-            "urgency": urgency,
-            "text": f"建议在 {draft['rectification_deadline']} 前完成整改并复核",
-        }
+            impacts = [impact]
+    actions = unique_texts(content_analysis.get("recommended_actions")) or unique_texts(draft.get("suggested_actions"))
+    model = content_analysis.get("model") or (result.get("vision") or {}).get("model")
+    image_basis = "；".join(unique_texts(draft.get("observations")))
+    if not image_basis:
+        image_basis = limit_text(content_analysis.get("summary"), 1000) or draft.get("description")
     return {
-        "id": result["id"],
-        "report_no": result.get("report_no"),
-        "status": "identified",
-        "created_at": result.get("created_at") or "",
-        "discovery_time": draft.get("discovery_time") or result.get("created_at") or "",
-        "model": content_analysis.get("model") or (result.get("vision") or {}).get("model"),
-        "analyzed_at": content_analysis.get("analyzed_at"),
-        "analyzer": {"type": "system", "name": "系统自动分析"},
-        "description": draft.get("description"),
-        "category": draft.get("category"),
-        "type": draft.get("type"),
-        "level": draft.get("level"),
-        "level_source": draft.get("level_source"),
-        "discovery_source": draft.get("discovery_source"),
-        "location": draft.get("location"),
-        "equipment_name": draft.get("equipment_name"),
-        "image_count": image_count,
-        "thumbnail_url": f"/api/v1/hazard-identifications/{result['id']}/images/0" if image_count else None,
-        "manual_review_required": bool(draft.get("manual_review_required") or content_analysis.get("manual_review_required")),
-        "rectification_deadline": draft.get("rectification_deadline"),
-        "identification_basis": "；".join(unique_texts(draft.get("observations"))) or draft.get("description"),
-        "images": detail_images(str(result["id"]), image_count, regions),
-        "analysis": analysis,
+        "basic": {
+            "reportNo": result.get("report_no"),
+            "createdAt": result.get("created_at") or "",
+            "source": draft.get("discovery_source"),
+            "model": model,
+            "analyst": "系统自动分析",
+            "analyzedAt": content_analysis.get("analyzed_at"),
+        },
+        "media": {
+            "imageBasis": image_basis,
+            "images": detail_images(str(result["id"]), image_count, regions),
+        },
+        "evidence": detail_public_evidence(evidence),
+        "findings": detail_public_findings(findings),
+        "suggestion": {
+            "impacts": impacts,
+            "actions": actions,
+            "deadline": detail_public_deadline(content_analysis.get("response_deadline"), draft),
+        },
     }
 
 
@@ -1767,8 +1834,8 @@ async def analyze_hazard_identification(record_id: str) -> dict[str, Any]:
 @app.get(
     "/api/v1/hazard-identifications/{record_id}",
     tags=["hazard-identifications"],
-    summary="获取隐患识别记录详情",
-    description="返回详情报告页所需的基础信息、图像区域、法规/规则依据和 AI 分析结果；首次访问时自动生成并缓存分析。",
+    summary="获取隐患识别记录详情（v3）",
+    description="返回 basic、media、evidence、findings、suggestion 五个前端直接渲染的区块；首次访问时自动生成并缓存分析。",
     response_model=HazardDetailResponse,
 )
 async def get_hazard_identification(record_id: str) -> dict[str, Any]:
