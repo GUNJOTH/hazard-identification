@@ -18,6 +18,12 @@ HEAT_SAFETY_KEYWORDS = (
     "换热", "泵站", "热力站", "补偿器", "管沟", "压力管道",
 )
 
+INFRASTRUCTURE_SAFETY_KEYWORDS = (
+    "墙体", "墙壁", "墙面", "天花板", "楼梯", "楼板", "地面", "公共区域",
+    "受潮", "渗水", "渗漏", "水渍", "锈水", "剥落", "起皮", "裂缝", "积水",
+    "湿滑", "警示牌", "扶手", "通道",
+)
+
 
 def build_knowledge_query(analysis: dict[str, Any]) -> str:
     return "；".join([
@@ -59,6 +65,18 @@ def is_heat_context(analysis: dict[str, Any]) -> bool:
     return any(keyword in context_text for keyword in HEAT_SAFETY_KEYWORDS)
 
 
+def is_infrastructure_safety_context(analysis: dict[str, Any]) -> bool:
+    context_text = " ".join([
+        as_text(analysis.get("hazard_description")),
+        as_text(analysis.get("hazard_category")),
+        as_text(analysis.get("hazard_type")),
+        as_text(analysis.get("equipment_name")),
+        as_text(analysis.get("location")),
+        as_text(analysis.get("observations")),
+    ])
+    return any(keyword in context_text for keyword in INFRASTRUCTURE_SAFETY_KEYWORDS)
+
+
 def local_heat_safety_evidence() -> list[dict[str, Any]]:
     path = PROJECT_DIR / "knowledge-base" / "05_热力安全法规与标准依据.md"
     try:
@@ -70,6 +88,20 @@ def local_heat_safety_evidence() -> list[dict[str, Any]]:
         "document": path.name,
         "content": content[:1800],
         "segment_id": "local-05-heat-safety-legal-basis",
+    }]
+
+
+def local_infrastructure_safety_evidence() -> list[dict[str, Any]]:
+    path = PROJECT_DIR / "knowledge-base" / "08_建筑与公共区域安全法规依据.md"
+    try:
+        content = path.read_text(encoding="utf-8")
+    except OSError:
+        return []
+    return [{
+        "score": 0.65,
+        "document": path.name,
+        "content": content[:3600],
+        "segment_id": "local-08-building-public-safety-basis",
     }]
 
 
@@ -105,6 +137,12 @@ async def retrieve_hazard_rules(analysis: dict[str, Any]) -> dict[str, Any]:
         for record in records
     ):
         records.extend(local_heat_safety_evidence())
+    infrastructure_context = is_infrastructure_safety_context(analysis)
+    if infrastructure_context and not any(
+        str(record.get("document") or "").startswith("08_建筑与公共区域")
+        for record in records
+    ):
+        records.extend(local_infrastructure_safety_evidence())
     unique_records = []
     seen = set()
     for record in records:

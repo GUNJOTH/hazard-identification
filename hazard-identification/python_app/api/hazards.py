@@ -62,6 +62,8 @@ def evidence_kind_label(item: dict[str, Any]) -> str:
     document = str(item.get("document") or "")
     if document.startswith("05_热力安全"):
         return "法规/标准依据"
+    if document.startswith("08_建筑与公共区域"):
+        return "法规/标准依据"
     if document.startswith("06_供热单位隐患识别与分级规则"):
         return "企业规则"
     if document.startswith("07_热力设备图像识别词典"):
@@ -317,12 +319,12 @@ def seed_records() -> dict[str, dict[str, Any]]:
             record_id="00000000-0000-4000-8000-000000000001",
             created_at="2026-08-25T01:30:00Z",
             image_indexes=(0,),
-            description="金属立柱根部存在大面积锈蚀，局部保护层脱落并出现破损。",
+            description="墙体墙壁局部出现受潮、锈水和表层剥落，墙面保护层破损，需及时排查渗漏原因并修复。",
             category="基础设施",
             hazard_type="设备设施事故隐患",
-            location="室外设备区域",
-            equipment_name="金属立柱",
-            actions=["安排专业人员检查腐蚀范围", "完成除锈、防腐及破损部位修复"],
+            location="室外墙体区域",
+            equipment_name="墙体墙壁",
+            actions=["安排专业人员检查墙体受潮和破损范围", "完成墙面修复、防水及表层防护"],
         ),
         "00000000-0000-4000-8000-000000000002": seed_record(
             record_id="00000000-0000-4000-8000-000000000002",
@@ -334,41 +336,6 @@ def seed_records() -> dict[str, dict[str, Any]]:
             location="地下管道间",
             equipment_name="管道及阀门组",
             actions=["检查管道和阀门密封状态", "处理锈蚀并消除渗漏，恢复墙面防护"],
-        ),
-        "00000000-0000-4000-8000-000000000003": seed_record(
-            record_id="00000000-0000-4000-8000-000000000003",
-            created_at="2026-08-25T03:00:00Z",
-            image_indexes=(0, 1),
-            description="楼梯间墙面及构件存在受潮、锈蚀和表面破损，通行区域维护状况较差。",
-            category="基础设施",
-            hazard_type="人身安全隐患",
-            location="楼梯间及相邻管道区域",
-            equipment_name="楼梯及墙面构件",
-            actions=["设置现场警示并排查受潮原因", "修复墙面和构件破损，保持通道安全"],
-        ),
-        "00000000-0000-4000-8000-000000000004": seed_record(
-            record_id="00000000-0000-4000-8000-000000000004",
-            created_at="2026-08-25T03:45:00Z",
-            image_indexes=(0,),
-            description="金属支撑构件根部腐蚀严重并伴随明显截面破损，存在承载能力下降风险。",
-            category="基础设施",
-            hazard_type="设备设施事故隐患",
-            location="设备基础区域",
-            equipment_name="金属支撑构件",
-            actions=["立即设置隔离和警示", "由专业人员复核承载状态并制定加固或更换方案"],
-            level="重大隐患",
-            review_items=["需人工复核设备名称、腐蚀深度及重大隐患等级"],
-        ),
-        "00000000-0000-4000-8000-000000000005": seed_record(
-            record_id="00000000-0000-4000-8000-000000000005",
-            created_at="2026-08-25T04:30:00Z",
-            image_indexes=(0, 1),
-            description="同一处设施从多个角度可见构件锈蚀、墙面锈水和局部破损，需开展联合排查。",
-            category="生产设备",
-            hazard_type="设备设施事故隐患",
-            location="设备间及相邻墙体",
-            equipment_name="管道、阀门及墙体构件",
-            actions=["结合两张图片核对隐患范围", "排查渗漏源并完成防腐、修复和复验"],
         ),
     }
 
@@ -556,7 +523,7 @@ def detail_evidence(
         content = str(item.get("content") or "")
         if not content:
             continue
-        if document.startswith("05_热力安全"):
+        if document.startswith("05_热力安全") or document.startswith("08_建筑与公共区域"):
             sections = heat_safety_law_sections(content)
             for section in sections:
                 body = str(section.get("body") or "")

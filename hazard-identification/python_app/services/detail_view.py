@@ -181,7 +181,7 @@ def detail_evidence(
         content = str(item.get("content") or "")
         if not content:
             continue
-        if document.startswith("05_热力安全"):
+        if document.startswith("05_热力安全") or document.startswith("08_建筑与公共区域"):
             sections = heat_safety_law_sections(content)
             for section in sections:
                 body = str(section.get("body") or "")
