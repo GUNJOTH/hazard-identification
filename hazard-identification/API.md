@@ -116,8 +116,8 @@ GET /api/v1/hazard-identifications/{id}
     "reportNo": "HD-20260826-0001",
     "createdAt": "2026-08-26T08:00:00Z",
     "source": "图片上传识别",
-    "model": "多模态隐患识别模型 v1.0",
-    "analyst": "系统自动分析",
+    "model": "生产设备",
+    "analyst": "设备设施事故隐患",
     "analyzedAt": "2026-08-26T08:02:11Z"
   },
 
@@ -152,7 +152,10 @@ GET /api/v1/hazard-identifications/{id}
       {
         "title": "《中华人民共和国特种设备安全法》",
         "article": "第十三条",
-        "excerpt": "特种设备使用单位应当使用符合安全技术规范要求的特种设备，并不得使用未经检验或者检验不合格的特种设备。"
+        "articleContent": "特种设备使用单位应当使用符合安全技术规范要求的特种设备，并不得使用未经检验或者检验不合格的特种设备。",
+        "excerpt": "用于判断特种设备是否符合安全技术规范要求；图片只能作为外观异常线索，需结合检验和现场资料确认。",
+        "violationReason": "当前识别结果涉及特种设备外观异常，与该条款的使用和安全技术要求相关；是否构成违反条款仍需结合检验和现场资料复核。",
+        "aiSummary": "该条款关注特种设备是否符合安全技术规范。当前图片只能作为外观异常线索，仍需结合设备档案、检验记录和现场检查确认。"
       }
     ],
     "rules": [
@@ -211,8 +214,8 @@ GET /api/v1/hazard-identifications/{id}
 | `reportNo` | string | 是 | 报告单号（编号），如 `HD-20260826-0001`；未生成时为 `null`，前端回退接口请求用的 `id` |
 | `createdAt` | string | 否 | 创建时间 |
 | `source` | string | 是 | 隐患来源，如 `图片上传识别`，见枚举 |
-| `model` | string | 是 | 识别模型名称，如 `多模态隐患识别模型 v1.0` |
-| `analyst` | string | 是 | 分析人展示名；系统自动分析时后端填 `系统自动分析`，人工分析时填人名 |
+| `model` | string | 是 | 兼容已发版前端的字段名；详情页展示为“隐患类别”，如 `生产设备` |
+| `analyst` | string | 是 | 兼容已发版前端的字段名；详情页展示为“隐患类型”，如 `设备设施事故隐患` |
 | `analyzedAt` | string | 是 | 分析时间；为空时前端回退 `discovery_time` → `created_at`（列表同款字段，由后端在基础字段中一并返回） |
 
 ### 4.4 ② `media` 识别图像与隐患部位（原型图 2）
@@ -254,8 +257,11 @@ GET /api/v1/hazard-identifications/{id}
 | 字段 | 类型 | 可空 | 说明 |
 | --- | --- | --- | --- |
 | `title` | string | 否 | 法规标题，如 `《中华人民共和国特种设备安全法》` |
-| `article` | string | 是 | 条款号，如 `第十三条`（前端拼在标题后） |
-| `excerpt` | string | 否 | 正文摘要（卡片内 3 行截断，悬浮展示全文） |
+| `article` | string | 是 | 条款号，如 `第十三条`；没有明确条款号时为 `null` |
+| `articleContent` | string | 是 | 命中的条款原文；知识库未提供明确条款原文时为 `null`，前端不得自行补写 |
+| `excerpt` | string | 否 | 依据说明，包括适用范围、检查要点或隐患参考项，不再作为条款原文展示（卡片内 3 行截断，悬浮展示全文） |
+| `violationReason` | string | 是 | 当前隐患与该条款/检查要求的对应说明；照片只能证明可见现象，不能据此直接认定违法或最终等级 |
+| `aiSummary` | string | 是 | AI 根据当前隐患、图片现象和该条依据归纳的适用说明；必须以知识库原文为边界 |
 
 **`rules[]`：**
 
@@ -264,6 +270,7 @@ GET /api/v1/hazard-identifications/{id}
 | `title` | string | 否 | 规则名称（后端已合成，如 `设备泄漏或减薄处置规则`；编码类信息需要时可由后端并入标题） |
 | `riskLevelText` | string | 是 | 关联风险等级说明，如 `高风险` |
 | `excerpt` | string | 否 | 正文摘要（同 laws） |
+| `aiSummary` | string | 是 | AI 根据当前隐患和规则内容归纳的适用说明 |
 
 ### 4.6 ④ `findings[]` 隐患识别结果（原型图 4）
 
@@ -303,7 +310,7 @@ GET /api/v1/hazard-identifications/{id}
 | 原型图区块 | 响应字段 |
 | --- | --- |
 | 标题：隐患单分析详情 / 下载分析报告 | 页面静态文案；报告文件名由前端用 `basic.reportNo` 生成 |
-| 1. 基础信息 | `basic.reportNo`(编号)、`basic.createdAt`(创建时间)、`basic.source`(隐患来源)、`basic.model`(识别模型)、`basic.analyst`(分析人)、`basic.analyzedAt`(分析时间) |
+| 1. 基础信息 | `basic.reportNo`(编号)、`basic.createdAt`(创建时间)、`basic.source`(隐患来源)、`basic.model`(隐患类别展示位)、`basic.analyst`(隐患类型展示位)、`basic.analyzedAt`(分析时间) |
 | 2. 识别图像与隐患部位 | `media.images[]`（大图/多角度切换）、`media.images[].regions[]`（虚线框+标签）、`media.imageBasis`（识别依据） |
 | 3. 分析依据 | 3.1 图像识别依据：`media.images[index].url` + 页面静态文案；3.2 `evidence.laws[]`；3.3 `evidence.rules[]` |
 | 4. 隐患识别结果（多模态分析） | `findings[]`（描述、依据说明、部位、风险等级徽标、置信度、依据） |

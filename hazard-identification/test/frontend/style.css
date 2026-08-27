@@ -326,7 +326,13 @@ textarea:focus, .record-toolbar input:focus { border-color: #8ab7f6; box-shadow:
 .basis-item-icon { display: grid; width: 22px; height: 22px; flex: 0 0 22px; place-items: center; border-radius: 5px; color: #fff; background: #1769e8; font-size: 13px; font-weight: 800; }
 .basis-item-icon.rule { background: #23ae67; }
 .basis-item strong { display: block; color: #2a3c5a; font-size: 12px; line-height: 1.45; }
+.basis-item-label { display: block; margin-top: 3px; color: #3b86ea; font-size: 10px; font-style: normal; }
+.basis-item-content b { color: #41678f; font-weight: 600; }
 .basis-item p { display: -webkit-box; margin: 4px 0 0; overflow: hidden; color: #7b8da6; font-size: 11px; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.basis-item-ai { color: #557aa5 !important; }
+.basis-item-ai b { color: #1769e8; font-weight: 600; }
+.basis-item-reason { color: #627b9c !important; }
+.basis-item-reason b { color: #41678f; font-weight: 600; }
 .basis-empty { padding: 24px 8px; color: #9aabc0; font-size: 12px; line-height: 1.7; }
 .basis-more-button { display: block; margin: 20px auto 0; padding: 5px 8px; border: 0; color: #1769e8; background: transparent; font-size: 12px; cursor: pointer; }
 .result-table-wrap { overflow: hidden; border: 1px solid #e5edf7; border-radius: 8px; }
@@ -344,6 +350,7 @@ textarea:focus, .record-toolbar input:focus { border-color: #8ab7f6; box-shadow:
 .risk-level { display: inline-block; padding: 5px 10px; border-radius: 5px; font-size: 11px; }
 .risk-level.high { color: #e95145; background: #fff0ee; }
 .risk-level.medium { color: #e68c24; background: #fff6e8; }
+.risk-level.low { color: #238d61; background: #eaf8f1; }
 .risk-level.unknown { color: #788ca8; background: #f0f4f9; }
 .table-empty { padding: 20px 8px; color: #9aa9bc; font-size: 12px; }
 .table-more-button { display: block; width: 100%; padding: 12px; border: 0; border-top: 1px solid #edf2f8; color: #1769e8; background: #fff; font-size: 12px; cursor: pointer; }

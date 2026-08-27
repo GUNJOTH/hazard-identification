@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>隐患单分析详情</title>
-    <link rel="stylesheet" href="./style.css?v=detail-design-3" />
+    <link rel="stylesheet" href="./style.css?v=detail-api3-2" />
   </head>
   <body class="analysis-page-body detail-design-body">
     <div class="detail-app-shell">
@@ -34,18 +34,12 @@
         <section class="detail-section">
           <div class="detail-section-title"><span>1.</span> 隐患单基础信息</div>
           <div class="basic-info-grid">
-            <div><span>隐患单编号</span><strong id="detailRecordId">-</strong></div>
-            <div><span>隐患发现来源</span><strong id="detailSource">-</strong></div>
-            <div><span>发现时间</span><strong id="detailTime">-</strong></div>
-            <div class="basic-info-description"><span>隐患描述</span><strong id="detailDescription">-</strong></div>
-            <div><span>隐患类别</span><strong id="detailCategory">-</strong></div>
-            <div><span>隐患类型</span><strong id="detailType">-</strong></div>
-            <div><span>隐患等级</span><strong id="detailLevel">-</strong></div>
-            <div><span>设备名称</span><strong id="detailEquipment">-</strong></div>
-            <div><span>位置</span><strong id="detailLocation">-</strong></div>
-            <div><span>整改时限</span><strong id="detailDeadline">-</strong></div>
-            <div><span>是否涉及特种设备</span><strong id="detailSpecial">-</strong></div>
-            <div><span>整改状态</span><strong id="detailStatus">-</strong></div>
+            <div><span>隐患单编号</span><strong id="detailReportNo">-</strong></div>
+            <div><span>创建时间</span><strong id="detailCreatedAt">-</strong></div>
+            <div><span>隐患来源</span><strong id="detailSource">-</strong></div>
+            <div><span>隐患类别</span><strong id="detailModel">-</strong></div>
+            <div><span>隐患类型</span><strong id="detailAnalyst">-</strong></div>
+            <div><span>分析时间</span><strong id="detailAnalyzedAt">-</strong></div>
           </div>
         </section>
 
@@ -80,7 +74,7 @@
               <p id="basisDescription">根据识别结果，定位并核验隐患部位。</p>
             </div>
             <div class="basis-card">
-              <div class="sub-card-title">3.2 相关法律法规依据</div>
+              <div class="sub-card-title">3.2 对应法规条款与内容说明</div>
               <div id="legalBasis" class="basis-list"></div>
               <button class="basis-more-button" type="button">查看更多法规&nbsp;›</button>
             </div>
@@ -128,6 +122,6 @@
         <footer class="detail-footer">注：本分析结果由多模态识别、法规知识库与企业规则综合评估生成，仅供参考，最终以人工审核为准。</footer>
       </main>
     </div>
-    <script src="./analysis.js?v=detail-design-3"></script>
+    <script src="./analysis.js?v=detail-api3-3"></script>
   </body>
 </html>

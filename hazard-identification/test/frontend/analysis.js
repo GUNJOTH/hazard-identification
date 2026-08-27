@@ -7,7 +7,6 @@ const recordId = params.get('id') || ''
 const $ = id => document.getElementById(id)
 const state = {
   result: null,
-  analysis: null,
   selectedImageIndex: 0,
   expandedFindings: false,
   imageCache: new Map(),
@@ -19,13 +18,8 @@ function setServiceStatus(text, type) {
   node.className = `service-status is-${type}`
 }
 
-function listText(value, fallback = '-') {
-  if (Array.isArray(value)) return value.filter(Boolean).join('；') || fallback
-  return value || fallback
-}
-
 function uniqueTexts(values) {
-  return [...new Set((values || []).map(item => String(item || '').trim()).filter(Boolean))]
+  return [...new Set((Array.isArray(values) ? values : []).map(item => String(item || '').trim()).filter(Boolean))]
 }
 
 function formatTime(value) {
@@ -48,6 +42,11 @@ function escapeHtml(value) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;')
+}
+
+function displayValue(value, fallback = '-') {
+  const text = String(value ?? '').trim()
+  return text || fallback
 }
 
 function clamp(value, min = 0, max = 1) {
@@ -78,47 +77,74 @@ function drawContained(context, image, width, height) {
   return { left, top, width: drawWidth, height: drawHeight }
 }
 
-function validRegions(result) {
-  const images = result?.images || []
-  return (Array.isArray(result?.regions) ? result.regions : [])
-    .filter(region => images[region.image_index])
+function drawContainedCanvas(canvas, image, width, height) {
+  canvas.width = width
+  canvas.height = height
+  return drawContained(canvas.getContext('2d'), image, width, height)
 }
 
-function drawRegionLabel(context, text, x, y) {
+function regionBounds(region) {
+  const bbox = region?.bbox
+  if (!bbox || typeof bbox !== 'object') return null
+  const x = clamp(bbox.x)
+  const y = clamp(bbox.y)
+  const width = clamp(bbox.width)
+  const height = clamp(bbox.height)
+  const x2 = clamp(x + width)
+  const y2 = clamp(y + height)
+  if (x2 <= x || y2 <= y) return null
+  return [x, y, x2, y2]
+}
+
+function validRegions(result, imageIndex = state.selectedImageIndex) {
+  const image = result?.media?.images?.[imageIndex]
+  return Array.isArray(image?.regions) ? image.regions : []
+}
+
+function regionColor(kind) {
+  if (kind === 'hazard_area') return '#1769e8'
+  if (kind === 'wear') return '#e99427'
+  return '#f34d45'
+}
+
+function drawRegionLabel(context, text, x, y, color, width = 1000) {
   const label = text || '隐患部位'
   context.font = 'bold 18px Microsoft YaHei, sans-serif'
   const labelWidth = context.measureText(label).width + 28
-  const left = Math.max(8, Math.min(x, 1000 - labelWidth - 8))
+  const left = Math.max(8, Math.min(x, width - labelWidth - 8))
   const top = Math.max(8, y - 46)
-  context.fillStyle = '#f34d45'
+  context.fillStyle = color
   context.fillRect(left, top, labelWidth, 36)
   context.fillStyle = '#fff'
   context.fillText(label, left + 14, top + 24)
 }
 
-function drawMainImage(canvas, image, region) {
+function drawMainImage(canvas, image, regions) {
   const width = 1000
   const height = 560
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d')
   const frame = drawContained(context, image, width, height)
-  if (!region) return
-  const [x1, y1, x2, y2] = (region.bbox || []).map(Number)
-  if (![x1, y1, x2, y2].every(Number.isFinite)) return
-  const left = frame.left + clamp(x1) * frame.width
-  const top = frame.top + clamp(y1) * frame.height
-  const boxWidth = Math.max(10, (clamp(x2) - clamp(x1)) * frame.width)
-  const boxHeight = Math.max(10, (clamp(y2) - clamp(y1)) * frame.height)
-  context.save()
-  context.fillStyle = 'rgba(243, 77, 69, 0.08)'
-  context.fillRect(left, top, boxWidth, boxHeight)
-  context.strokeStyle = '#f34d45'
-  context.lineWidth = 4
-  context.setLineDash([12, 8])
-  context.strokeRect(left, top, boxWidth, boxHeight)
-  context.restore()
-  drawRegionLabel(context, region.label, left, top)
+  regions.forEach(region => {
+    const bounds = regionBounds(region)
+    if (!bounds) return
+    const [x1, y1, x2, y2] = bounds
+    const left = frame.left + x1 * frame.width
+    const top = frame.top + y1 * frame.height
+    const boxWidth = Math.max(10, (x2 - x1) * frame.width)
+    const boxHeight = Math.max(10, (y2 - y1) * frame.height)
+    const color = regionColor(region.kind)
+    context.save()
+    context.fillStyle = `${color}18`
+    context.fillRect(left, top, boxWidth, boxHeight)
+    context.strokeStyle = color
+    context.lineWidth = 4
+    context.setLineDash([12, 8])
+    context.strokeRect(left, top, boxWidth, boxHeight)
+    context.restore()
+    drawRegionLabel(context, region.label, left, top, color, width)
+  })
 }
 
 function drawRegionCrop(canvas, image, region) {
@@ -127,11 +153,12 @@ function drawRegionCrop(canvas, image, region) {
   canvas.width = width
   canvas.height = height
   const context = canvas.getContext('2d')
-  if (!region || !Array.isArray(region.bbox)) {
+  const bounds = regionBounds(region)
+  if (!bounds) {
     drawContained(context, image, width, height)
     return
   }
-  const [x1, y1, x2, y2] = region.bbox.map(Number)
+  const [x1, y1, x2, y2] = bounds
   const paddingX = Math.max((x2 - x1) * 0.08, 0.02)
   const paddingY = Math.max((y2 - y1) * 0.08, 0.02)
   const cropX = Math.max(0, x1 - paddingX)
@@ -162,40 +189,40 @@ function drawRegionCrop(canvas, image, region) {
   const boxTop = top + ((y1 - cropY) / cropHeight) * drawHeight
   const boxWidth = Math.max(10, ((x2 - x1) / cropWidth) * drawWidth)
   const boxHeight = Math.max(10, ((y2 - y1) / cropHeight) * drawHeight)
+  const color = regionColor(region.kind)
   context.save()
-  context.fillStyle = 'rgba(243, 77, 69, 0.06)'
+  context.fillStyle = `${color}10`
   context.fillRect(boxLeft, boxTop, boxWidth, boxHeight)
-  context.strokeStyle = '#f34d45'
+  context.strokeStyle = color
   context.lineWidth = 4
   context.setLineDash([12, 8])
   context.strokeRect(boxLeft, boxTop, boxWidth, boxHeight)
   context.restore()
-  drawRegionLabel(context, region.label, boxLeft + boxWidth - 190, boxTop)
+  drawRegionLabel(context, region.label, boxLeft + boxWidth - 190, boxTop, color, width)
 }
 
 async function renderSelectedImage() {
   const result = state.result
-  const images = result?.images || []
+  const images = result?.media?.images || []
   const item = images[state.selectedImageIndex]
   if (!item) return
   try {
     const image = await loadImage(imageUrl(item.url))
     const regions = validRegions(result)
-    const region = regions.find(item => item.image_index === state.selectedImageIndex) || null
-    drawMainImage($('detailMainCanvas'), image, region)
+    const region = regions[0] || null
+    drawMainImage($('detailMainCanvas'), image, regions)
     if (region) {
       $('regionFocusEmpty').classList.add('hidden')
       drawRegionCrop($('regionFocusCanvas'), image, region)
-      $('basisCanvas').classList.remove('hidden')
       drawRegionCrop($('basisCanvas'), image, region)
       $('regionFocusDescription').textContent = region.description || '已定位隐患区域'
-      $('basisDescription').textContent = `依据识别结果，定位并核验${region.label || '隐患'}，直观反映设备当前状态。`
+      $('basisDescription').textContent = result.media.imageBasis || '依据识别结果，定位并核验隐患部位。'
     } else {
       $('regionFocusEmpty').classList.remove('hidden')
-      drawContained($('regionFocusCanvas').getContext('2d'), image, 1000, 500)
-      drawContained($('basisCanvas').getContext('2d'), image, 1000, 500)
+      drawContainedCanvas($('regionFocusCanvas'), image, 1000, 500)
+      drawContainedCanvas($('basisCanvas'), image, 1000, 500)
       $('regionFocusDescription').textContent = '当前图片没有可绘制的区域坐标'
-      $('basisDescription').textContent = '当前记录暂未返回可绘制区域，请以原图和文字分析为准。'
+      $('basisDescription').textContent = result.media.imageBasis || '当前记录暂未返回可绘制区域，请以原图和文字分析为准。'
     }
   } catch (error) {
     $('mainImageEmpty').textContent = '识别图像加载失败'
@@ -204,7 +231,7 @@ async function renderSelectedImage() {
 }
 
 function renderGallery(result) {
-  const images = result.images || []
+  const images = result.media?.images || []
   const container = $('detailThumbnails')
   if (!images.length) {
     $('mainImageEmpty').classList.remove('hidden')
@@ -230,79 +257,73 @@ function renderGallery(result) {
 }
 
 function renderBasicInfo(result) {
-  const draft = result.hazard_info || {}
-  $('detailRecordId').textContent = result.id || '-'
-  $('detailDescription').textContent = draft.description || '待补充隐患描述'
-  $('detailCategory').textContent = draft.category || '待分类'
-  $('detailType').textContent = draft.type || '待确认'
-  $('detailLevel').textContent = draft.level || '待确认'
-  $('detailSource').textContent = draft.discovery_source || '隐患排查'
-  $('detailEquipment').textContent = draft.equipment_name || '待现场确认'
-  $('detailLocation').textContent = draft.location || '待现场确认'
-  $('detailTime').textContent = formatTime(draft.discovery_time || result.created_at)
-  $('detailDeadline').textContent = draft.rectification_deadline || '待确认'
-  $('detailSpecial').textContent = draft.special_equipment_involved || '待确认'
-  $('detailStatus').textContent = draft.remediation?.status || '待整改'
+  const basic = result.basic || {}
+  $('detailReportNo').textContent = displayValue(basic.reportNo, recordId || '-')
+  $('detailCreatedAt').textContent = formatTime(basic.createdAt)
+  $('detailSource').textContent = displayValue(basic.source, '待确认')
+  $('detailModel').textContent = displayValue(basic.model, '待确认')
+  $('detailAnalyst').textContent = displayValue(basic.analyst, '待确认')
+  $('detailAnalyzedAt').textContent = formatTime(basic.analyzedAt)
 }
 
 function basisItem(item, kind) {
   const icon = kind === 'legal' ? '▣' : '✓'
+  const title = item.title
+  const detailLabel = kind === 'legal'
+    ? (item.article ? `条款号：${item.article}` : '法规/目录依据')
+    : (item.riskLevelText ? `关联风险：${item.riskLevelText}` : '规则内容')
+  const contentLabel = kind === 'legal'
+    ? (item.articleContent ? '违反条款内容' : '依据说明')
+    : '规则内容'
+  const content = item.articleContent || item.excerpt || '已命中相关依据'
+  const reason = kind === 'legal' ? item.violationReason : ''
+  const aiSummary = item.aiSummary
   return `<div class="basis-item">
     <span class="basis-item-icon ${kind}">${icon}</span>
-    <div><strong>${escapeHtml(item.document || '隐患规则库')}</strong><p>${escapeHtml(item.content || '已命中相关依据')}</p></div>
+    <div><strong>${escapeHtml(title || '隐患依据')}</strong><em class="basis-item-label">${escapeHtml(detailLabel)}</em><p class="basis-item-content"><b>${escapeHtml(contentLabel)}：</b>${escapeHtml(content)}</p>${aiSummary ? `<p class="basis-item-ai"><b>AI归纳：</b>${escapeHtml(aiSummary)}</p>` : ''}${reason ? `<p class="basis-item-reason"><b>对应说明：</b>${escapeHtml(reason)}</p>` : ''}</div>
   </div>`
 }
 
 function renderBasis(result) {
-  const evidence = result.hazard_info?.evidence || []
-  const legal = evidence.filter(item => /法|规程|标准|条例/.test(item.document || ''))
-  const rules = evidence.filter(item => !legal.includes(item))
+  const evidence = result.evidence || {}
+  const legal = Array.isArray(evidence.laws) ? evidence.laws : []
+  const rules = Array.isArray(evidence.rules) ? evidence.rules : []
   $('legalBasis').innerHTML = legal.length
     ? legal.slice(0, 4).map(item => basisItem(item, 'legal')).join('')
-    : '<div class="basis-empty">暂无已配置的法律法规召回记录</div>'
+    : '<div class="basis-empty">暂无已配置的法律法规依据</div>'
   $('ruleBasis').innerHTML = rules.length
     ? rules.slice(0, 4).map(item => basisItem(item, 'rule')).join('')
-    : '<div class="basis-empty">暂无企业规则召回记录</div>'
+    : '<div class="basis-empty">暂无企业规则依据</div>'
 }
 
-function findingRows(result, analysis) {
-  const draft = result.hazard_info || {}
-  const regions = validRegions(result)
-  if (regions.length) {
-    return regions.map((region, index) => ({
-      index: index + 1,
-      description: region.description || draft.description || '待补充隐患描述',
-      location: region.label || draft.location || '待现场确认',
-      level: draft.level || '待确认',
-      confidence: region.confidence ?? analysis?.confidence,
-      basis: '图像特征、规则依据',
-    }))
-  }
-  return [{
-    index: 1,
-    description: draft.description || analysis?.summary || '待补充隐患描述',
-    location: draft.location || analysis?.focus_hint || '待现场确认',
-    level: draft.level || '待确认',
-    confidence: analysis?.confidence,
-    basis: '图像特征、规则依据',
-  }]
+function findingRows(result) {
+  return (Array.isArray(result.findings) ? result.findings : []).map((item, index) => ({
+    index: index + 1,
+    description: item.description,
+    reason: item.reason,
+    location: item.location,
+    risk: item.riskBadge?.text,
+    confidence: item.confidenceText,
+    basis: item.basisText,
+  }))
 }
 
-function renderFindings(result, analysis) {
-  const rows = findingRows(result, analysis)
+function renderFindings(result) {
+  const rows = findingRows(result)
   const visible = state.expandedFindings ? rows : rows.slice(0, 3)
-  $('findingRows').innerHTML = visible.map(row => {
-    const confidence = typeof row.confidence === 'number' ? row.confidence.toFixed(2) : '待确认'
-    const levelClass = row.level === '重大隐患' ? 'high' : row.level === '一般隐患' ? 'medium' : 'unknown'
-    return `<tr>
-      <td>${row.index}</td>
-      <td><strong>${escapeHtml(row.description)}</strong><small>检测依据：图像特征识别</small></td>
-      <td>${escapeHtml(row.location)}</td>
-      <td><span class="risk-level ${levelClass}">${escapeHtml(row.level)}</span></td>
-      <td>${confidence}</td>
-      <td>${escapeHtml(row.basis)}</td>
-    </tr>`
-  }).join('')
+  $('findingRows').innerHTML = visible.length
+    ? visible.map(row => {
+      const levelClass = row.risk === '高' ? 'high' : row.risk === '中' ? 'medium' : row.risk === '低' ? 'low' : 'unknown'
+      return `<tr>
+        <td>${row.index}</td>
+        <td><strong>${escapeHtml(displayValue(row.description))}</strong><small>${escapeHtml(displayValue(row.reason))}</small></td>
+        <td>${escapeHtml(displayValue(row.location, '待确认'))}</td>
+        <td><span class="risk-level ${levelClass}">${escapeHtml(displayValue(row.risk, '待确认'))}</span></td>
+        <td>${escapeHtml(displayValue(row.confidence))}</td>
+        <td>${escapeHtml(displayValue(row.basis))}</td>
+      </tr>`
+    }).join('')
+    : '<tr><td colspan="6" class="table-empty">暂无隐患识别结果</td></tr>'
   const more = $('expandFindings')
   if (rows.length > 3) {
     more.classList.remove('hidden')
@@ -312,26 +333,22 @@ function renderFindings(result, analysis) {
   }
 }
 
-function renderRiskSuggestions(result, analysis) {
-  const draft = result.hazard_info || {}
-  const riskItems = uniqueTexts([
-    analysis?.risk_assessment,
-    analysis?.impact,
-    analysis?.root_cause,
-    ...(analysis?.key_findings || []),
-  ])
-  $('riskAnalysisList').innerHTML = riskItems.length
-    ? riskItems.slice(0, 5).map(item => `<div>${escapeHtml(item)}</div>`).join('')
-    : '<div class="table-empty">等待 AI 分析</div>'
-  const actions = uniqueTexts(analysis?.recommended_actions || draft.suggested_actions || [])
+function renderRiskSuggestions(result) {
+  const suggestion = result.suggestion || {}
+  const impacts = uniqueTexts(suggestion.impacts)
+  $('riskAnalysisList').innerHTML = impacts.length
+    ? impacts.slice(0, 5).map(item => `<div>${escapeHtml(item)}</div>`).join('')
+    : '<div class="table-empty">暂无风险影响分析</div>'
+  const actions = uniqueTexts(suggestion.actions)
   $('actionList').innerHTML = actions.length
     ? actions.slice(0, 5).map((item, index) => `<div><b>${index + 1}</b><span>${escapeHtml(item)}</span></div>`).join('')
     : '<div class="table-empty">暂无整改建议</div>'
-  const deadline = draft.rectification_deadline
-  $('deadlineBadge').className = `deadline-badge ${deadline ? 'is-set' : ''}`
-  $('deadlineBadge').innerHTML = `<span>◷</span><b>${deadline ? '已设定' : '待确认'}</b>`
-  $('deadlineText').textContent = deadline ? `建议整改完成：${deadline}` : '请结合现场情况确认整改时限'
-  $('deadlineHint').textContent = deadline ? '完成风险评估并按期制定整改方案' : '完成风险评估并制定整改方案'
+  const deadline = suggestion.deadline || {}
+  const urgent = deadline.isUrgent === true
+  $('deadlineBadge').className = `deadline-badge ${urgent ? '' : 'is-set'}`
+  $('deadlineBadge').innerHTML = `<span>◷</span><b>${urgent ? '紧急' : '一般'}</b>`
+  $('deadlineText').textContent = displayValue(deadline.text, '待确认整改时限')
+  $('deadlineHint').textContent = urgent ? '请优先完成风险控制并制定整改方案' : '按分析建议完成整改并复核'
 }
 
 function renderDetail(result) {
@@ -339,21 +356,8 @@ function renderDetail(result) {
   renderBasicInfo(result)
   renderGallery(result)
   renderBasis(result)
-  renderFindings(result, state.analysis)
-  renderRiskSuggestions(result, state.analysis)
-}
-
-function renderContentAnalysis(analysis) {
-  state.analysis = analysis
-  renderBasicInfo(state.result)
-  renderFindings(state.result, analysis)
-  renderRiskSuggestions(state.result, analysis)
-}
-
-function renderContentAnalysisError(error) {
-  $('riskAnalysisList').innerHTML = `<div class="table-empty">${escapeHtml(error.message || 'AI 分析暂时不可用')}</div>`
-  $('actionList').innerHTML = '<div class="table-empty">请稍后重试</div>'
-  renderFindings(state.result, null)
+  renderFindings(result)
+  renderRiskSuggestions(result)
 }
 
 async function request(path, options = {}) {
@@ -379,24 +383,16 @@ $('backToList').href = listUrl()
 $('downloadReport').addEventListener('click', () => window.print())
 $('expandFindings').addEventListener('click', () => {
   state.expandedFindings = !state.expandedFindings
-  renderFindings(state.result, state.analysis)
+  renderFindings(state.result)
 })
 
 if (!recordId) {
   setServiceStatus('缺少记录 ID', 'error')
 } else {
   request(`/hazard-identifications/${encodeURIComponent(recordId)}`)
-    .then(async result => {
+    .then(result => {
       renderDetail(result)
       setServiceStatus('服务在线', 'online')
-      try {
-        const analysis = await request(`/hazard-identifications/${encodeURIComponent(recordId)}/analysis`, { method: 'POST' })
-        const refreshed = await request(`/hazard-identifications/${encodeURIComponent(recordId)}`)
-        renderDetail(refreshed)
-        renderContentAnalysis(analysis)
-      } catch (error) {
-        renderContentAnalysisError(error)
-      }
     })
     .catch(error => setServiceStatus(error.message || '加载失败', 'error'))
 }
