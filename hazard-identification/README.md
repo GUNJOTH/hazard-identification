@@ -19,6 +19,9 @@ $env:DIFY_HAZARD_RULES_DATASET_ID = '<hazard-rules-dataset-id>'
 uv run uvicorn python_app.main:app --host 0.0.0.0 --port 8787
 ```
 
+视觉模型默认超时为 180 秒，最多重试 1 次；可通过 `VISION_TIMEOUT_SECONDS` 和
+`VISION_MAX_RETRIES` 调整，适合大图和思考型视觉模型的较慢响应。
+
 在线文档：`http://127.0.0.1:8787/docs`
 
 ## 独立前端预览

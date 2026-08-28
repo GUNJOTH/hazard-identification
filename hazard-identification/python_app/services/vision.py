@@ -48,7 +48,7 @@ async def request_vision_completion(messages: list[dict[str, Any]], *, max_token
         "max_tokens": max_tokens,
     }
     last_error: UpstreamError | None = None
-    for attempt in range(3):
+    for attempt in range(CONFIG.vision_max_retries + 1):
         try:
             payload = await request_json(
                 f"{CONFIG.vision_base_url}/chat/completions",
@@ -59,7 +59,7 @@ async def request_vision_completion(messages: list[dict[str, Any]], *, max_token
                     "Accept": "application/json",
                 },
                 body=request_body,
-                timeout=60,
+                timeout=CONFIG.vision_timeout_seconds,
             )
             break
         except UpstreamError as error:

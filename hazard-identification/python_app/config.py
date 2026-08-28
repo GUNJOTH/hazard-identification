@@ -36,6 +36,8 @@ class Config:
     vision_base_url: str
     vision_model: str
     vision_api_key: str
+    vision_timeout_seconds: float
+    vision_max_retries: int
     dify_base_url: str
     dify_api_key: str
     hazard_rules_dataset_id: str
@@ -66,11 +68,27 @@ def env_url(name: str, default: str) -> str:
     return os.getenv(name, default).rstrip("/")
 
 
+def env_float(name: str, default: float) -> float:
+    try:
+        return float(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
+def env_int(name: str, default: int) -> int:
+    try:
+        return int(os.getenv(name, str(default)))
+    except ValueError:
+        return default
+
+
 def load_config() -> Config:
     return Config(
         vision_base_url=env_url("VISION_BASE_URL", "https://www.ai.atyou.cn/v1"),
         vision_model=os.getenv("VISION_MODEL", "deepseek-v4-flash-vision-exp"),
         vision_api_key=os.getenv("VISION_API_KEY", ""),
+        vision_timeout_seconds=max(env_float("VISION_TIMEOUT_SECONDS", 180.0), 1.0),
+        vision_max_retries=max(env_int("VISION_MAX_RETRIES", 1), 0),
         dify_base_url=env_url("DIFY_BASE_URL", "http://172.20.1.81/v1"),
         dify_api_key=os.getenv("DIFY_API_KEY", ""),
         hazard_rules_dataset_id=os.getenv("DIFY_HAZARD_RULES_DATASET_ID", ""),
