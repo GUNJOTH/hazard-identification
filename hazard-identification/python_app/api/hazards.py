@@ -36,6 +36,7 @@ from ..schemas import (
 )
 from ..repositories.records import load_persisted_result, save_result
 from ..services.detail_view import public_detail_result as build_public_detail_result
+from ..services.detail_view import record_hazard_code
 from ..services.http_client import request_json
 from ..services.identification import build_hazard_draft, create_identification, public_images
 from ..services.knowledge import flatten_evidence, retrieve_hazard_rules
@@ -360,6 +361,7 @@ def list_item_from_record(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(record["id"]),
         "status": "identified",
+        "CM_PL_PJO_LINECODE": record_hazard_code(str(record["id"]), draft, record.get("content_analysis") or {}),
         "created_at": record.get("created_at") or "",
         "discovery_time": draft.get("discovery_time") or record.get("created_at") or "",
         "description": draft.get("description"),
@@ -761,12 +763,13 @@ def public_detail_result(result: dict[str, Any]) -> dict[str, Any]:
     if not image_basis:
         image_basis = limit_text(content_analysis.get("summary"), 1000) or draft.get("description")
     return {
+        "CM_PL_PJO_LINECODE": None,
         "basic": {
             "reportNo": result.get("report_no"),
             "createdAt": result.get("created_at") or "",
             "source": draft.get("discovery_source"),
-            "model": draft.get("category"),
-            "analyst": draft.get("type"),
+            "category": draft.get("category"),
+            "type": draft.get("type"),
             "analyzedAt": content_analysis.get("analyzed_at"),
         },
         "media": {

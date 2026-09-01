@@ -1,0 +1,23 @@
+# Docker 构建上下文排除项
+# 注意：test/frontend 与 test/multi-angle 是演示前端和种子图片，必须保留在镜像内
+
+.venv
+**/__pycache__
+*.pyc
+*.pyo
+.git
+.gitignore
+.gitattributes
+.env
+runtime
+hazard-identification-linux.zip
+.claude
+.workbuddy
+*.log
+.DS_Store
+Dockerfile
+docker-compose*.yml
+.dockerignore
+DEPLOY_DOCKER.md
+README.md
+API.md

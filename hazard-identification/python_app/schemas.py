@@ -128,11 +128,12 @@ class DetailEvidenceResponse(BaseModel):
 
 
 class DetailBasicResponse(BaseModel):
+    CM_PL_PJO_LINECODE: str | None = None
     reportNo: str | None
     createdAt: str
     source: str | None
-    model: str | None
-    analyst: str | None
+    category: str | None
+    type: str | None
     analyzedAt: str | None
 
 
@@ -176,6 +177,7 @@ class HazardDetailResponse(BaseModel):
 class HazardListItem(BaseModel):
     id: str
     status: str
+    CM_PL_PJO_LINECODE: str | None = None
     created_at: str
     discovery_time: str
     description: str | None
