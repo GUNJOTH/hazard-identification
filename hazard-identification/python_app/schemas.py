@@ -134,6 +134,9 @@ class DetailBasicResponse(BaseModel):
     source: str | None
     category: str | None
     type: str | None
+    # model/analyst 为 category/type 的兼容别名，取值一致，供已发版前端与外部集成方读取。
+    model: str | None = None
+    analyst: str | None = None
     analyzedAt: str | None
 
 
