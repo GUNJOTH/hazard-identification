@@ -1,0 +1,51 @@
+name: Python validation
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - hazard-identification/**
+      - .github/workflows/ci.yml
+      - pyproject.toml
+      - uv.lock
+  push:
+    branches:
+      - main
+    paths:
+      - hazard-identification/**
+      - .github/workflows/ci.yml
+      - pyproject.toml
+      - uv.lock
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compile:
+    name: Python 3.12 compile
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: hazard-identification
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: hazard-identification/uv.lock
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - name: Compile Python modules
+        run: uv run python -m compileall -q python_app
