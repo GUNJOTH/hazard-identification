@@ -31,7 +31,7 @@ jobs:
         working-directory: hazard-identification
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
