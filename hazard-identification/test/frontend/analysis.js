@@ -261,8 +261,8 @@ function renderBasicInfo(result) {
   $('detailReportNo').textContent = displayValue(basic.reportNo, recordId || '-')
   $('detailCreatedAt').textContent = formatTime(basic.createdAt)
   $('detailSource').textContent = displayValue(basic.source, '待确认')
-  $('detailModel').textContent = displayValue(basic.model, '待确认')
-  $('detailAnalyst').textContent = displayValue(basic.analyst, '待确认')
+  $('detailCategory').textContent = displayValue(basic.category, '待确认')
+  $('detailType').textContent = displayValue(basic.type, '待确认')
   $('detailAnalyzedAt').textContent = formatTime(basic.analyzedAt)
 }
 

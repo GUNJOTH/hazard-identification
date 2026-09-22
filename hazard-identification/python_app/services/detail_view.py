@@ -317,6 +317,27 @@ def detail_public_evidence(evidence: dict[str, list[dict[str, Any]]]) -> dict[st
     }
 
 
+# 隐患编码（CM_PL_PJO_LINECODE）由 CM_PL_PJO 台账系统分配，属于业务主数据，
+# 只能从记录顶层的业务字段读取——该字段由创建接口从台账传参写入
+# （见 identification.hazard_code_from_context），是有明确来源的持久化字段。
+#
+# 刻意不读 hazard_draft 与 content_analysis：二者都是 AI 分析产物，模型输出或
+# 历史迁移数据一旦带上同名字段，就会被当作官方编码返回，使业务主数据被模型结果覆盖。
+HAZARD_CODE_FIELDS = ("hazard_code", "hazardCode", "CM_PL_PJO_LINECODE", "cm_pl_pjo_linecode")
+
+
+def record_hazard_code(record: dict[str, Any]) -> str | None:
+    """读取记录顶层登记的隐患编码；未登记时返回 None，由前端展示占位符。
+
+    字段名保留多种写法只为兼容历史落盘数据，来源严格限定在记录顶层。
+    """
+    for field in HAZARD_CODE_FIELDS:
+        code = nullable_text(record.get(field))
+        if code:
+            return code
+    return None
+
+
 def detail_public_findings(findings: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return [{
         "description": item["description"], "reason": item.get("reason"), "location": item.get("location"),
@@ -362,9 +383,14 @@ def public_detail_result(result: dict[str, Any]) -> dict[str, Any]:
     if not image_basis:
         image_basis = limit_text(content_analysis.get("summary"), 1000) or draft.get("description")
     return {
-        "basic": {"reportNo": result.get("report_no"), "createdAt": result.get("created_at") or "",
-                  "source": draft.get("discovery_source"), "model": draft.get("category"),
-                  "analyst": draft.get("type"), "analyzedAt": content_analysis.get("analyzed_at")},
+        "basic": {"CM_PL_PJO_LINECODE": record_hazard_code(result),
+                  "reportNo": result.get("report_no"), "createdAt": result.get("created_at") or "",
+                  "source": draft.get("discovery_source"), "category": draft.get("category"),
+                  "type": draft.get("type"),
+                  # model/analyst 是 category/type 的兼容别名，取值完全一致，
+                  # 供已发版前端与外部集成方继续读取；待调用方全部迁移后再移除。
+                  "model": draft.get("category"), "analyst": draft.get("type"),
+                  "analyzedAt": content_analysis.get("analyzed_at")},
         "media": {"imageBasis": image_basis, "images": detail_images(str(result["id"]), image_count, regions)},
         "evidence": detail_public_evidence(evidence),
         "findings": detail_public_findings(findings),

@@ -128,11 +128,15 @@ class DetailEvidenceResponse(BaseModel):
 
 
 class DetailBasicResponse(BaseModel):
+    CM_PL_PJO_LINECODE: str | None = None
     reportNo: str | None
     createdAt: str
     source: str | None
-    model: str | None
-    analyst: str | None
+    category: str | None
+    type: str | None
+    # model/analyst 为 category/type 的兼容别名，取值一致，供已发版前端与外部集成方读取。
+    model: str | None = None
+    analyst: str | None = None
     analyzedAt: str | None
 
 
@@ -176,6 +180,7 @@ class HazardDetailResponse(BaseModel):
 class HazardListItem(BaseModel):
     id: str
     status: str
+    CM_PL_PJO_LINECODE: str | None = None
     created_at: str
     discovery_time: str
     description: str | None

@@ -10,5 +10,15 @@ dependencies = [
   "python-multipart>=0.0.9,<1",
 ]
 
+[dependency-groups]
+dev = [
+  "pytest>=8,<9",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = "-q"
+
 [tool.uv]
 package = false

@@ -58,6 +58,7 @@ GET /api/v1/hazard-identifications?page=1&page_size=20&keyword=锈蚀
     {
       "id": "00000000-0000-4000-8000-000000000005",
       "status": "identified",
+      "CM_PL_PJO_LINECODE": "CE20260831.005",
       "created_at": "2026-08-25T04:30:00Z",
       "discovery_time": "2026-08-25T04:30:00Z",
       "description": "同一处设施从多个角度可见构件锈蚀、墙面锈水和局部破损，需开展联合排查。",
@@ -82,6 +83,7 @@ GET /api/v1/hazard-identifications?page=1&page_size=20&keyword=锈蚀
 | --- | --- | --- |
 | `id` | string | 隐患记录唯一标识，详情接口的路径参数 |
 | `status` | string | 识别记录状态，当前固定 `identified` |
+| `CM_PL_PJO_LINECODE` | string/null | 隐患编码，取记录顶层已登记的台账值；未登记为 `null`（后端不推断、不猜测，也不采用模型分析结果中的同名字段） |
 | `created_at` | string | 后端创建记录时间 |
 | `discovery_time` | string | 隐患发现时间 |
 | `description` | string/null | AI 生成的隐患描述；无法可靠判断时为 `null` |
@@ -113,9 +115,12 @@ GET /api/v1/hazard-identifications/{id}
 ```json
 {
   "basic": {
+    "CM_PL_PJO_LINECODE": "CE20260826.001",
     "reportNo": "HD-20260826-0001",
     "createdAt": "2026-08-26T08:00:00Z",
     "source": "图片上传识别",
+    "category": "生产设备",
+    "type": "设备设施事故隐患",
     "model": "生产设备",
     "analyst": "设备设施事故隐患",
     "analyzedAt": "2026-08-26T08:02:11Z"
@@ -211,11 +216,14 @@ GET /api/v1/hazard-identifications/{id}
 
 | 字段 | 类型 | 可空 | 说明 |
 | --- | --- | --- | --- |
+| `CM_PL_PJO_LINECODE` | string | 是 | 隐患编码，由 CM_PL_PJO 台账系统分配：创建隐患单时随表单/JSON 传入 `hazard_code`（兼容 `CM_PL_PJO_LINECODE`）即原样保存到记录顶层，如 `CE20260831.006`。**只从记录顶层读取**——不按记录 ID 或描述文本反查猜测，也不采用 `hazard_draft` / `content_analysis` 等模型产物中的同名字段；未登记时为 `null` |
 | `reportNo` | string | 是 | 报告单号（编号），如 `HD-20260826-0001`；未生成时为 `null`，前端回退接口请求用的 `id` |
 | `createdAt` | string | 否 | 创建时间 |
 | `source` | string | 是 | 隐患来源，如 `图片上传识别`，见枚举 |
-| `model` | string | 是 | 兼容已发版前端的字段名；详情页展示为“隐患类别”，如 `生产设备` |
-| `analyst` | string | 是 | 兼容已发版前端的字段名；详情页展示为“隐患类型”，如 `设备设施事故隐患` |
+| `category` | string | 是 | 隐患类别，如 `生产设备`（详情页「隐患类别」展示位） |
+| `type` | string | 是 | 隐患类型，如 `设备设施事故隐患`（详情页「隐患类型」展示位） |
+| `model` | string | 是 | **兼容别名**，取值恒等于 `category`；供已发版前端与外部集成方读取，新接入方请直接用 `category` |
+| `analyst` | string | 是 | **兼容别名**，取值恒等于 `type`；供已发版前端与外部集成方读取，新接入方请直接用 `type` |
 | `analyzedAt` | string | 是 | 分析时间；为空时前端回退 `discovery_time` → `created_at`（列表同款字段，由后端在基础字段中一并返回） |
 
 ### 4.4 ② `media` 识别图像与隐患部位（原型图 2）
@@ -310,7 +318,7 @@ GET /api/v1/hazard-identifications/{id}
 | 原型图区块 | 响应字段 |
 | --- | --- |
 | 标题：隐患单分析详情 / 下载分析报告 | 页面静态文案；报告文件名由前端用 `basic.reportNo` 生成 |
-| 1. 基础信息 | `basic.reportNo`(编号)、`basic.createdAt`(创建时间)、`basic.source`(隐患来源)、`basic.model`(隐患类别展示位)、`basic.analyst`(隐患类型展示位)、`basic.analyzedAt`(分析时间) |
+| 1. 基础信息 | `basic.CM_PL_PJO_LINECODE`(隐患编码，取台账登记值)、`basic.reportNo`(编号)、`basic.createdAt`(创建时间)、`basic.source`(隐患来源)、`basic.category`(隐患类别展示位)、`basic.type`(隐患类型展示位)、`basic.analyzedAt`(分析时间) |
 | 2. 识别图像与隐患部位 | `media.images[]`（大图/多角度切换）、`media.images[].regions[]`（虚线框+标签）、`media.imageBasis`（识别依据） |
 | 3. 分析依据 | 3.1 图像识别依据：`media.images[index].url` + 页面静态文案；3.2 `evidence.laws[]`；3.3 `evidence.rules[]` |
 | 4. 隐患识别结果（多模态分析） | `findings[]`（描述、依据说明、部位、风险等级徽标、置信度、依据） |

@@ -158,6 +158,19 @@ def public_result(result: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def hazard_code_from_context(context: dict[str, str]) -> str | None:
+    """从创建请求的表单/JSON 字段中提取隐患编码。
+
+    编码由 CM_PL_PJO 台账系统分配并在提交隐患单时一并传入；这里只做取值，
+    不生成、不推断——取不到就保持为空，交由台账侧后续回填。
+    """
+    for field in ("hazard_code", "CM_PL_PJO_LINECODE", "cm_pl_pjo_linecode"):
+        code = nullable_text(context.get(field))
+        if code:
+            return code
+    return None
+
+
 async def create_identification(request: Request) -> dict[str, Any]:
     ensure_pipeline_config()
     uploads, context = await parse_request(request)
@@ -183,6 +196,8 @@ async def create_identification(request: Request) -> dict[str, Any]:
         "id": record_id,
         "created_at": created_at,
         "client_request_id": nullable_text(context.get("client_request_id")),
+        # 隐患编码由 CM_PL_PJO 台账系统分配，随隐患单提交时一并保存；未传入则为空。
+        "hazard_code": hazard_code_from_context(context),
         "images": metadata,
         "vision": vision,
         "knowledge": knowledge,

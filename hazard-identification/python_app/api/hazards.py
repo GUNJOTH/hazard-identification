@@ -36,6 +36,7 @@ from ..schemas import (
 )
 from ..repositories.records import load_persisted_result, save_result
 from ..services.detail_view import public_detail_result as build_public_detail_result
+from ..services.detail_view import record_hazard_code
 from ..services.http_client import request_json
 from ..services.identification import build_hazard_draft, create_identification, public_images
 from ..services.knowledge import flatten_evidence, retrieve_hazard_rules
@@ -249,6 +250,7 @@ def seed_record(
     actions: list[str],
     level: str = "一般隐患",
     review_items: list[str] | None = None,
+    hazard_code: str | None = None,
 ) -> dict[str, Any]:
     image_paths = [SEED_IMAGE_PATHS[index] for index in image_indexes]
     analysis = {
@@ -306,6 +308,9 @@ def seed_record(
         "id": record_id,
         "created_at": created_at,
         "client_request_id": None,
+        # 隐患编码由 CM_PL_PJO 台账系统分配，作为记录自身的业务字段保存；
+        # 详情/列表接口只读取它，不做记录 ID 或描述文本的反查映射。
+        "hazard_code": hazard_code,
         "images": [seed_image_metadata(path) for path in image_paths],
         "vision": {"model": CONFIG.vision_model, "analysis": analysis},
         "knowledge": knowledge,
@@ -325,6 +330,7 @@ def seed_records() -> dict[str, dict[str, Any]]:
             location="室外墙体区域",
             equipment_name="墙体墙壁",
             actions=["安排专业人员检查墙体受潮和破损范围", "完成墙面修复、防水及表层防护"],
+            hazard_code="CE20260831.006",
         ),
         "00000000-0000-4000-8000-000000000002": seed_record(
             record_id="00000000-0000-4000-8000-000000000002",
@@ -336,6 +342,7 @@ def seed_records() -> dict[str, dict[str, Any]]:
             location="地下管道间",
             equipment_name="管道及阀门组",
             actions=["检查管道和阀门密封状态", "处理锈蚀并消除渗漏，恢复墙面防护"],
+            hazard_code="CE20260831.004",
         ),
     }
 
@@ -360,6 +367,7 @@ def list_item_from_record(record: dict[str, Any]) -> dict[str, Any]:
     return {
         "id": str(record["id"]),
         "status": "identified",
+        "CM_PL_PJO_LINECODE": record_hazard_code(record),
         "created_at": record.get("created_at") or "",
         "discovery_time": draft.get("discovery_time") or record.get("created_at") or "",
         "description": draft.get("description"),
@@ -761,12 +769,13 @@ def public_detail_result(result: dict[str, Any]) -> dict[str, Any]:
     if not image_basis:
         image_basis = limit_text(content_analysis.get("summary"), 1000) or draft.get("description")
     return {
+        "CM_PL_PJO_LINECODE": None,
         "basic": {
             "reportNo": result.get("report_no"),
             "createdAt": result.get("created_at") or "",
             "source": draft.get("discovery_source"),
-            "model": draft.get("category"),
-            "analyst": draft.get("type"),
+            "category": draft.get("category"),
+            "type": draft.get("type"),
             "analyzedAt": content_analysis.get("analyzed_at"),
         },
         "media": {
