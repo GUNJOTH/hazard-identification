@@ -4,8 +4,9 @@
 
 1. ``basic`` 字段改名（model/analyst → category/type）必须保留兼容别名，
    否则已发版前端与外部集成方读取旧字段时会拿到 null，详情页出现稳定回归；
-2. ``CM_PL_PJO_LINECODE`` 只能取记录上已登记的台账值，禁止按记录 ID 或
-   隐患描述文本反查猜测，否则会把 A 隐患的编码挂到 B 隐患上。
+2. ``CM_PL_PJO_LINECODE`` 只能取记录顶层登记的台账值：既不按记录 ID 或描述
+   文本反查猜测，也不采用 ``hazard_draft`` / ``content_analysis`` 等模型产物中
+   的同名字段，避免业务主数据被模型输出覆盖。
 """
 
 from __future__ import annotations
@@ -62,12 +63,29 @@ def test_hazard_code_is_read_from_record() -> None:
     assert public_detail_result(record)["basic"]["CM_PL_PJO_LINECODE"] == "CE20260831.003"
 
 
-def test_hazard_code_can_live_in_draft() -> None:
-    """草稿层携带编码时同样可读，兼容不同的落库位置。"""
-    record = make_record()
-    record["hazard_draft"]["hazard_code"] = "CE20260901.003"
+@pytest.mark.parametrize("container", ["hazard_draft", "content_analysis"])
+@pytest.mark.parametrize("field", ["hazard_code", "CM_PL_PJO_LINECODE"])
+def test_hazard_code_is_ignored_outside_record_top_level(container: str, field: str) -> None:
+    """模型产物层出现的同名字段必须忽略，不得当作官方台账编码返回。
 
-    assert record_hazard_code(record) == "CE20260901.003"
+    content_analysis 是 AI 分析结果、hazard_draft 同样是模型输出：二者出现
+    hazard_code 属于模型幻觉或历史迁移残留，一旦采信就会让业务主数据被模型结果覆盖。
+    """
+    record = make_record()
+    record[container][field] = "CE20260901.003"
+
+    assert record_hazard_code(record) is None
+    assert public_detail_result(record)["basic"]["CM_PL_PJO_LINECODE"] is None
+
+
+def test_record_top_level_code_wins_over_model_output() -> None:
+    """台账登记值优先，模型产物中的同名字段不得覆盖它。"""
+    record = make_record(hazard_code="CE20260831.003")
+    record["hazard_draft"]["hazard_code"] = "MODEL-OUTPUT"
+    record["content_analysis"]["CM_PL_PJO_LINECODE"] = "MODEL-OUTPUT"
+
+    assert record_hazard_code(record) == "CE20260831.003"
+    assert public_detail_result(record)["basic"]["CM_PL_PJO_LINECODE"] == "CE20260831.003"
 
 
 def test_hazard_code_missing_returns_none_instead_of_guessing() -> None:

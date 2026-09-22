@@ -317,22 +317,24 @@ def detail_public_evidence(evidence: dict[str, list[dict[str, Any]]]) -> dict[st
     }
 
 
-# 隐患编码（CM_PL_PJO_LINECODE）由 CM_PL_PJO 台账系统分配，属于业务数据，
-# 不是展示层可以推断的内容。这里只负责「读取」记录上已登记的编码，
-# 绝不根据记录 ID 或隐患描述文本反查、猜测编码——猜错会把 A 隐患的编码挂到 B 隐患上。
+# 隐患编码（CM_PL_PJO_LINECODE）由 CM_PL_PJO 台账系统分配，属于业务主数据，
+# 只能从记录顶层的业务字段读取——该字段由创建接口从台账传参写入
+# （见 identification.hazard_code_from_context），是有明确来源的持久化字段。
+#
+# 刻意不读 hazard_draft 与 content_analysis：二者都是 AI 分析产物，模型输出或
+# 历史迁移数据一旦带上同名字段，就会被当作官方编码返回，使业务主数据被模型结果覆盖。
 HAZARD_CODE_FIELDS = ("hazard_code", "hazardCode", "CM_PL_PJO_LINECODE", "cm_pl_pjo_linecode")
 
 
 def record_hazard_code(record: dict[str, Any]) -> str | None:
-    """读取记录自身携带的隐患编码；未登记时返回 None，由前端展示占位符。"""
-    sources = (record, record.get("hazard_draft"), record.get("content_analysis"))
-    for source in sources:
-        if not isinstance(source, dict):
-            continue
-        for field in HAZARD_CODE_FIELDS:
-            code = nullable_text(source.get(field))
-            if code:
-                return code
+    """读取记录顶层登记的隐患编码；未登记时返回 None，由前端展示占位符。
+
+    字段名保留多种写法只为兼容历史落盘数据，来源严格限定在记录顶层。
+    """
+    for field in HAZARD_CODE_FIELDS:
+        code = nullable_text(record.get(field))
+        if code:
+            return code
     return None
 
 

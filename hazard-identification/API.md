@@ -83,7 +83,7 @@ GET /api/v1/hazard-identifications?page=1&page_size=20&keyword=锈蚀
 | --- | --- | --- |
 | `id` | string | 隐患记录唯一标识，详情接口的路径参数 |
 | `status` | string | 识别记录状态，当前固定 `identified` |
-| `CM_PL_PJO_LINECODE` | string/null | 隐患编码，取记录上已登记的台账值；未登记为 `null`（后端不推断、不猜测） |
+| `CM_PL_PJO_LINECODE` | string/null | 隐患编码，取记录顶层已登记的台账值；未登记为 `null`（后端不推断、不猜测，也不采用模型分析结果中的同名字段） |
 | `created_at` | string | 后端创建记录时间 |
 | `discovery_time` | string | 隐患发现时间 |
 | `description` | string/null | AI 生成的隐患描述；无法可靠判断时为 `null` |
@@ -216,7 +216,7 @@ GET /api/v1/hazard-identifications/{id}
 
 | 字段 | 类型 | 可空 | 说明 |
 | --- | --- | --- | --- |
-| `CM_PL_PJO_LINECODE` | string | 是 | 隐患编码，由 CM_PL_PJO 台账系统分配：创建隐患单时随表单/JSON 传入 `hazard_code`（兼容 `CM_PL_PJO_LINECODE`）即原样保存，如 `CE20260831.006`；未登记时为 `null`——后端只读取该值，绝不按记录 ID 或描述文本反查猜测 |
+| `CM_PL_PJO_LINECODE` | string | 是 | 隐患编码，由 CM_PL_PJO 台账系统分配：创建隐患单时随表单/JSON 传入 `hazard_code`（兼容 `CM_PL_PJO_LINECODE`）即原样保存到记录顶层，如 `CE20260831.006`。**只从记录顶层读取**——不按记录 ID 或描述文本反查猜测，也不采用 `hazard_draft` / `content_analysis` 等模型产物中的同名字段；未登记时为 `null` |
 | `reportNo` | string | 是 | 报告单号（编号），如 `HD-20260826-0001`；未生成时为 `null`，前端回退接口请求用的 `id` |
 | `createdAt` | string | 否 | 创建时间 |
 | `source` | string | 是 | 隐患来源，如 `图片上传识别`，见枚举 |
